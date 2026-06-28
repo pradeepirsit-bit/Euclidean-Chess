@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>3D Euclidean Chess Simulator</title>
+    <title>3D Euclidean Chess - No CORS</title>
     <style>
         body {
             margin: 0;
@@ -15,9 +15,9 @@
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             color: #88ddff;
-            padding: 12px 24px;
+            padding: 10px 24px;
             border-radius: 30px;
             border: 1px solid rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(5px);
@@ -25,6 +25,8 @@
             z-index: 10;
             font-size: 14px;
             letter-spacing: 1px;
+            text-align: center;
+            white-space: nowrap;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
         }
         #status {
@@ -56,63 +58,50 @@
             cursor: pointer;
             font-weight: bold;
             transition: 0.2s;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
         }
         #reset-btn:hover {
             background: #2a2a4e;
             border-color: #88aaff;
             transform: scale(1.02);
         }
-        #error-msg {
-            display: none;
+        #loading {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(20, 0, 0, 0.9);
-            color: #ff5555;
-            padding: 30px;
-            border-radius: 16px;
-            border: 1px solid #ff3333;
-            text-align: center;
+            color: white;
+            font-size: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 20px 40px;
+            border-radius: 12px;
             z-index: 100;
-            max-width: 400px;
+            border: 1px solid #446;
         }
     </style>
 </head>
 <body>
+
+    <div id="loading">Loading 3D Libraries...</div>
     <div id="info">⚡ 3D EUCLIDEAN CHESS • Drag to orbit • Click piece to see attack rays</div>
     <div id="status">Your turn (White)</div>
     <button id="reset-btn">↻ New Game</button>
-    <div id="error-msg">
-        <h3>⚠️ Server Required</h3>
-        <p>Please run a local server (e.g., <code>python3 -m http.server 8000</code>) to load this game.</p>
-    </div>
 
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "chess.js": "https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/chess.esm.js"
-            }
-        }
+    <!-- ========================================== -->
+    <!-- CLASSIC SCRIPT TAGS (NO CORS, NO SERVER)    -->
+    <!-- ========================================== -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0-beta.8/chess.min.js">
     </script>
 
-    <script type="module">
-        // ----- IMPORTS -----
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { Chess } from 'chess.js';
+    <script>
+        // Hide loading screen once scripts are parsed
+        document.getElementById('loading').style.display = 'none';
 
-        // Show error if imports fail (catches network issues)
-        window.addEventListener('error', (e) => {
-            if (e.message.includes('Failed to fetch') || e.message.includes('import')) {
-                document.getElementById('error-msg').style.display = 'block';
-            }
-        });
-
-        // ----- SETUP SCENE -----
+        // ----- SETUP SCENE (THREE.js r128 UMD) -----
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0a1a);
 
@@ -127,7 +116,7 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        const controls = new OrbitControls(camera, renderer.domElement);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
         controls.target.set(0, 0.5, 0);
@@ -160,19 +149,7 @@
         back.position.set(0, 8, -12);
         scene.add(back);
 
-        // ----- GROUND GLOW (for aesthetics) -----
-        const glowMat = new THREE.MeshBasicMaterial({ color: 0x2233aa, transparent: true, opacity: 0.08 });
-        const glow = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), glowMat);
-        glow.rotation.x = -Math.PI / 2;
-        glow.position.y = -0.1;
-        scene.add(glow);
-
-        // ----- BOARD (8x8 Grid) - FIXED Z-AXIS FLIP -----
-        const boardGroup = new THREE.Group();
-        const squareSize = 1;
-        const offset = 3.5;
-
-        // Shadow plane
+        // Shadow floor
         const floorMat = new THREE.ShadowMaterial({ opacity: 0.6 });
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), floorMat);
         floor.rotation.x = -Math.PI / 2;
@@ -180,28 +157,27 @@
         floor.receiveShadow = true;
         scene.add(floor);
 
+        // ----- BOARD (Fixed Z-axis) -----
+        const boardGroup = new THREE.Group();
+        const offset = 3.5;
+
         for (let r = 0; r < 8; r++) {
             for (let f = 0; f < 8; f++) {
                 const color = (r + f) % 2 === 0 ? 0xf0d9b5 : 0xb58863;
                 const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1 });
-                const geo = new THREE.BoxGeometry(squareSize * 0.98, 0.12, squareSize * 0.98);
+                const geo = new THREE.BoxGeometry(0.98, 0.12, 0.98);
                 const square = new THREE.Mesh(geo, mat);
-                
-                // FIX: r=0 is Rank 8 (top), so Z should be +3.5. r=7 is Rank 1 (bottom), Z = -3.5.
                 const zPos = (7 - r) - offset;
                 square.position.set(f - offset, -0.06, zPos);
                 square.receiveShadow = true;
                 square.castShadow = true;
-                
-                // Store actual chess rank (0 = rank 1, 7 = rank 8)
-                const actualRank = (7 - r);
-                square.userData = { file: f, rank: actualRank, isSquare: true };
+                square.userData = { file: f, rank: (7 - r), isSquare: true };
                 boardGroup.add(square);
             }
         }
         scene.add(boardGroup);
 
-        // Board border glow
+        // Border glow
         const borderMat = new THREE.LineBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.25 });
         const borderPoints = [
             [-4, 0, -4], [4, 0, -4], [4, 0, 4], [-4, 0, 4], [-4, 0, -4]
@@ -210,7 +186,7 @@
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
-        // ----- PIECE CREATION (Stylized) -----
+        // ----- PIECE CREATION -----
         function createPiece(type, color) {
             const group = new THREE.Group();
             const isWhite = color === 'w';
@@ -221,8 +197,8 @@
             const baseMat = new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.25, metalness: shine });
             const accentMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.4, metalness: 0.3 });
 
-            const baseGeo = new THREE.CylinderGeometry(0.35, 0.45, 0.15, 16);
-            const base = new THREE.Mesh(baseGeo, baseMat);
+            // Base
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 0.15, 16), baseMat);
             base.position.y = 0.075;
             base.castShadow = true;
             group.add(base);
@@ -293,8 +269,8 @@
                 group.add(crown);
                 for (let i = 0; i < 4; i++) {
                     const spike = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.15, 4), accentMat);
-                    spike.position.set(Math.sin(i * Math.PI/2) * 0.28, 0.7, Math.cos(i * Math.PI/2) * 0.28);
-                    spike.rotation.x = Math.PI/2 * (i % 2);
+                    spike.position.set(Math.sin(i * Math.PI / 2) * 0.28, 0.7, Math.cos(i * Math.PI / 2) * 0.28);
+                    spike.rotation.x = Math.PI / 2 * (i % 2);
                     group.add(spike);
                 }
             } else if (type === 'k') {
@@ -319,32 +295,22 @@
             return group;
         }
 
-        // ----- GAME STATE -----
+        // ----- GAME STATE (using global Chess from chess.js) -----
         const chess = new Chess();
         let selectedSquare = null;
         let legalMovesForSelected = [];
         let currentTurn = 'w';
         let isAnimating = false;
-        let moveQueue = [];
         let attackLines = [];
-
         const pieceMap = new Map();
 
-        // 3D position converter (ACCURATE)
         function squareToPos(square) {
-            const file = square.charCodeAt(0) - 97; // 0 to 7
-            const rank = parseInt(square[1]) - 1;  // 0 to 7
+            const file = square.charCodeAt(0) - 97;
+            const rank = parseInt(square[1]) - 1;
             return new THREE.Vector3(file - 3.5, 0.5, rank - 3.5);
         }
 
-        function posToSquare(pos) {
-            const file = Math.round(pos.x + 3.5);
-            const rank = Math.round(pos.z + 3.5);
-            if (file < 0 || file > 7 || rank < 0 || rank > 7) return null;
-            return String.fromCharCode(97 + file) + (rank + 1);
-        }
-
-        // ----- RENDER PIECES FROM FEN -----
+        // ----- RENDER BOARD -----
         function renderBoard() {
             for (const [sq, data] of pieceMap) {
                 scene.remove(data.group);
@@ -356,7 +322,6 @@
                 for (let f = 0; f < 8; f++) {
                     const piece = board[r][f];
                     if (piece) {
-                        // r=0 is rank 8
                         const square = String.fromCharCode(97 + f) + (8 - r);
                         const group = createPiece(piece.type, piece.color);
                         const pos = squareToPos(square);
@@ -372,7 +337,7 @@
             }
         }
 
-        // ----- SMOOTH EUCLIDEAN ANIMATION LOOP -----
+        // ----- SMOOTH ANIMATION -----
         function animatePieces(delta) {
             const speed = 9.0;
             for (const [sq, data] of pieceMap) {
@@ -393,7 +358,7 @@
             }
         }
 
-        // ----- MOVE EXECUTION -----
+        // ----- EXECUTE MOVE -----
         function executeMove(move) {
             if (!move) return false;
             const result = chess.move(move);
@@ -403,14 +368,12 @@
             const to = result.to;
             const captured = result.captured;
 
-            // Remove captured piece
             if (captured) {
                 if (pieceMap.has(to)) {
                     const data = pieceMap.get(to);
                     scene.remove(data.group);
                     pieceMap.delete(to);
                 }
-                // En passant capture
                 if (result.flags === 'e') {
                     const epSquare = result.epSquare;
                     if (epSquare && pieceMap.has(epSquare)) {
@@ -421,22 +384,14 @@
                 }
             }
 
-            // Move piece from 'from' to 'to'
             if (pieceMap.has(from)) {
                 const data = pieceMap.get(from);
                 const group = data.group;
                 pieceMap.delete(from);
                 pieceMap.set(to, data);
                 group.userData.square = to;
-                const targetPos = squareToPos(to);
-                group.userData.targetPos.copy(targetPos);
-                
-                if (result.promotion) {
-                    data.type = result.promotion;
-                    // For visual simplicity, we keep the old mesh, but we could recreate it.
-                }
+                group.userData.targetPos.copy(squareToPos(to));
 
-                // Castling rook movement
                 if (result.flags === 'k' || result.flags === 'q') {
                     const rookFrom = result.flags === 'k' ? 'h' + result.from[1] : 'a' + result.from[1];
                     const rookTo = result.flags === 'k' ? 'f' + result.from[1] : 'd' + result.from[1];
@@ -454,11 +409,11 @@
             clearAttackLines();
             selectedSquare = null;
             legalMovesForSelected = [];
-
             currentTurn = chess.turn();
+
             if (chess.isGameOver()) {
                 let msg = 'Game Over! ';
-                if (chess.isCheckmate()) msg += (chess.turn() === 'w' ? 'Black' : 'White') + ' wins by checkmate!';
+                if (chess.isCheckmate()) msg += (chess.turn() === 'w' ? 'Black' : 'White') + ' wins!';
                 else if (chess.isDraw()) msg += 'Draw!';
                 document.getElementById('status').innerHTML = msg;
                 document.getElementById('status').style.color = '#ff6b6b';
@@ -484,7 +439,7 @@
             setTimeout(() => { isAnimating = false; }, 300);
         }
 
-        // ----- RAYCASTER INTERACTION -----
+        // ----- RAYCASTER & CLICK -----
         const raycaster = new THREE.Raycaster();
         const pointer = new THREE.Vector2();
 
@@ -521,7 +476,7 @@
                 }
                 if (parent.userData && parent.userData.isSquare) {
                     const f = parent.userData.file;
-                    const r = parent.userData.rank; // now correctly 0=rank1, 7=rank8
+                    const r = parent.userData.rank;
                     clickedSquare = String.fromCharCode(97 + f) + (r + 1);
                     break;
                 }
@@ -530,7 +485,6 @@
 
             if (!clickedSquare) return;
 
-            // If a piece is selected and we click a legal target
             if (selectedSquare) {
                 const move = legalMovesForSelected.find(m => m.to === clickedSquare);
                 if (move) {
@@ -546,7 +500,6 @@
                 }
             }
 
-            // Try to select a new piece
             if (pieceGroup) {
                 const sq = pieceGroup.userData.square;
                 const piece = chess.get(sq);
@@ -560,13 +513,12 @@
                 }
             }
 
-            // Clicked empty or invalid
             clearAttackLines();
             selectedSquare = null;
             legalMovesForSelected = [];
         }
 
-        // ----- DRAW EUCLIDEAN ATTACK RAYS -----
+        // ----- DRAW EUCLIDEAN RAYS -----
         function drawAttackLines(square, moves) {
             clearAttackLines();
             const fromPos = squareToPos(square);
@@ -583,7 +535,6 @@
                 scene.add(line);
                 attackLines.push(line);
 
-                // Target indicator
                 const sphereMat = new THREE.MeshBasicMaterial({ color: 0x33ff88 });
                 const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6), sphereMat);
                 sphere.position.set(toPos.x, 0.55, toPos.z);
@@ -638,7 +589,8 @@
         }
         animate();
 
-        console.log('✅ 3D Euclidean Chess loaded. Click a white piece to see Euclidean attack vectors.');
+        console.log('✅ 3D Euclidean Chess loaded successfully (No CORS / No Server).');
     </script>
+
 </body>
 </html>
