@@ -77,6 +77,7 @@
             border-radius: 12px;
             z-index: 100;
             border: 1px solid #446;
+            text-align: center;
         }
     </style>
 </head>
@@ -87,19 +88,29 @@
     <div id="status">Your turn (White)</div>
     <button id="reset-btn">↻ New Game</button>
 
-    <!-- ========================================== -->
-    <!-- CLASSIC SCRIPT TAGS (NO CORS, NO SERVER)    -->
-    <!-- ========================================== -->
+    <!-- =============================================== -->
+    <!-- CLASSIC SCRIPT TAGS (NO CORS, NO SERVER)         -->
+    <!-- CHESS.JS VERSION: 0.12.0 (RELIABLE UMD BUILD)    -->
+    <!-- =============================================== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
     </script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js">
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0-beta.8/chess.min.js">
+    
+    <!-- FIXED: Using cdnjs v0.12.0 which definitely exposes 'Chess' globally -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.12.0/chess.min.js">
     </script>
 
     <script>
-        // Hide loading screen once scripts are parsed
+        // Hide loading screen
         document.getElementById('loading').style.display = 'none';
+
+        // Sanity check to ensure Chess loaded
+        if (typeof Chess === 'undefined') {
+            document.getElementById('loading').innerHTML = '❌ Failed to load Chess library. <br> Please check your internet connection.';
+            document.getElementById('loading').style.display = 'block';
+            throw new Error('Chess library failed to load.');
+        }
 
         // ----- SETUP SCENE (THREE.js r128 UMD) -----
         const scene = new THREE.Scene();
@@ -590,6 +601,7 @@
         animate();
 
         console.log('✅ 3D Euclidean Chess loaded successfully (No CORS / No Server).');
+        console.log('Chess library version:', Chess.version);
     </script>
 
 </body>
